@@ -1,4 +1,4 @@
-from nameko.rpc import rpc
+from nameko.rpc import rpc, RpcProxy
 from nameko_redis import Redis
 import config as cfg
 import jwt
@@ -11,6 +11,7 @@ class Auth():
 
     name = 'auth'
     db = Redis('redis')
+    logger_rpc = RpcProxy('logger')
 
    # Logic
 
@@ -31,6 +32,7 @@ class Auth():
     def register(self, login, password):
         """Computing hash and saving password into db"
         :returns: True if user was register and False otherwise"""
+        self.logger_rpc.log(self.name, self.register.__name__, [login, password], "Info", "Registering")
         # Ensure that user is not already registered
         if self.db.hgetall(login) == {}:
             salt = uuid.uuid4().hex
@@ -48,6 +50,7 @@ class Auth():
         """Logging in user, getting JWT
         :params: login, password
         :returns: JWT or False if user is not valid"""
+        self.logger_rpc.log(self.name, self.login.__name__, [login, password], "Info", "Loggining")
         if self._is_valid(login, password):
             return jwt.encode({ 'login': login }, cfg.JWT_SECRET, cfg.JWT_ALGORITHM).decode('utf-8')    
         else:
@@ -57,6 +60,7 @@ class Auth():
     def check_jwt(self, jwt_token):
         """Validating jwt
         :returns: user login and False if token is not valid"""
+        self.logger_rpc.log(self.name, self.check_jwt.__name__, jwt_token, "Info", "Checking jwt")
         try:
             payload = jwt.decode(jwt_token, cfg.JWT_SECRET, algorithms=cfg.JWT_ALGORITHM)
         except jwt.DecodeError:
@@ -68,4 +72,5 @@ class Auth():
         """Getting a list of all user logins
         :returns:
             keys - list of all logins"""
+        self.logger_rpc.log(self.name, self.get_all_logins.__name__, None, "Info", "Getting all logins")
         return self.db.keys()
